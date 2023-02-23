@@ -107,6 +107,7 @@ y <- beta0 * X[, 1] + beta1 * X[, 2] + beta2 * X[, 3] + epsilon
 y
 ```
 
+
 Now we work through the parts of the estimator bit by bit to understand what happens here exactly:
 
 ```{r Taking a look at the components of the OLS estimator}
@@ -380,6 +381,7 @@ E[\hat{\beta}_{OLS}|X] 	& = E[(X'X)^{-1}X'y|X]                     & \text{(2) }
 			                  &= \beta.
 \end{aligned}
 $$
+
 ### Linearity in Parameters
 
 Assumption (1) essentially defines the multiple linear regression model. We can see above that when it fails, we cannot substitute $y$ with $X\beta + \epsilon$ but have to substitute with something else.
@@ -410,8 +412,57 @@ Full rank also implies that in matrix $X$ with $m$ columns, $n \geq m$, i.e. we 
 
 ## Zero Conditional Mean
 
-Assumption (3) is probably the most important assumption and the one that is definitively the most tricky. Practically, this means that $X$ does not help us in predicting the values of error terms, or, in other words, the data generating process of $X$ is independent of the data generating process of the error terms. If an explanatory
-variable is uncorrelated with the error term, one often says that the explanatory variable is *exogenous*. Let's spend some time to look at cases when it might fail. 
+Assumption (3) is probably the most important assumption and the one that is definitively the most tricky. Practically, this means that $X$ does not help us in predicting the values of error terms, or, in other words, the data generating process of $X$ is independent of the data generating process of the error terms. If an explanatory variable is uncorrelated with the error term, one often says that the explanatory variable is *exogenous*. Let's spend some time to look at cases when it might fail. 
+
+Here is an example where the zero conditinoal mean assumption is violated:
+
+```{r, echo=FALSE}
+set.seed(1234)
+# first independent variable and intercept
+n <- 100
+X <- cbind(rep(1, n),
+           runif(n))
+# second independent variable
+X <- cbind(X, 
+           rbinom(n, size = 1, 
+                  prob = ifelse(X[, 2] > 0.5, 0.98, 0.02)))
+
+# true betas
+beta <- c(0, 0.5, 5)
+
+# dependent variabl
+y <- X %*% beta + rnorm(n, 0, 0.5)
+
+# plot bivariate regression (y ~ X[,2])
+par(mfrow = c(1,2))
+plot(x = X[,2],
+     y = y,
+     pch = 19,
+     col = viridis(1),
+     main = "Bivariate regression\nwith omitted confounder",
+     xlab = "x",
+     las = 1)
+
+abline(lm(y ~ X[,2]))
+
+# residual plot
+plot(x = X[,2],
+     y = residuals(lm(y ~ X[,2])),
+     pch = 19,
+     col = viridis(1),
+     main = "Residual plot:\nZero conditional mean violation",
+     ylab = "Residuals",
+     xlab = "x",
+     las = 1)
+abline(h = 0)
+loess <- loess(residuals(lm(y ~ X[,2])) ~ X[,2])
+lines(x = loess$x[order(loess$x)],
+      y = loess$fitted[order(loess$x)],
+      col = viridis(2)[2],
+      lwd = 2)
+```
+
+
 
 Remember DAGs? The assumption is violated if we fail to account for confounder. Imagine the following situation:
 
@@ -427,7 +478,7 @@ $$
 	\hat{\beta_1} = (X'X)^{-1}X'y.
 $$
 
-Can $\hat{\beta}$ be unbiased and, if not, is there anything we can say about the bias? We simply re-do the proof from earlier:
+Can $\hat{\beta}$ be unbiased and, if not, is there anything we can say about the bias? We re-do the proof from earlier:
 
 $$
 \begin{aligned}
@@ -485,15 +536,15 @@ ovb <- function(x, z, gamma) {
 x <- rnorm(500)
 e <- rnorm(500, 0, 0.5) # vary the variance to induce correlation
 
-# set a value for delta and simulate data 
+# set a value for delta and simulate data (relation of confounder z with x)
 delta <- 1
 z <- delta*x + e
 
 # check correlation
 cor(x, z)
 
-# set a value for gamma
-gamma <- -1 # vary coefficient size
+# set a value for gamma (relation of confounder z with y)
+gamma <- 1 # vary coefficient size
 
 # apply the function
 ovb(x, z, gamma)
